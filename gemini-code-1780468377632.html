@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+      try {
+        var p = payload || {};
+        p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+        p.timestamp = message.timestamp;
+        window[ANDROID_BRIDGE_NAME].postEvent(eventName, JSON.stringify(p));
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  function onFrame() {
+    if (gameReadySent) return;
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', { frame_count: frameCount, detected_at: Date.now() });
+      return;
+    }
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', { frame_count: frameCount, detected_at: Date.now() });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  window.playablesSDK = {
+    complete: function(score) { sendEvent('game_ended', { score: score, completed: true }); },
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', { message: message || 'Unknown error', auto_captured: false });
+    },
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  if (originalRAF) { originalRAF.call(window, onFrame); }
+})();</script>
+<script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PermitIntel v1.3 — Bloomberg Terminal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body {
+    background-color: #030712;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .grid-bg {
+    background-color: #030712;
+    background-image: 
+      linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .panel {
+    background: rgba(3,7,18,0.7);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(31,41,55,0.8);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.5) inset;
+  }
+  .glow-box {
+    position: relative;
+    background: radial-gradient(600px 200px at 50% -20%, rgba(16,185,129,0.18), transparent 60%),
+                radial-gradient(400px 200px at 50% 120%, rgba(16,185,129,0.12), transparent 60%),
+                #0B1220;
+    border: 1px solid rgba(16,185,129,0.35);
+    box-shadow: 
+      0 0 0 1px rgba(16,185,129,0.15) inset,
+      0 0 80px rgba(16,185,129,0.18),
+      0 0 120px rgba(16,185,129,0.08);
+  }
+  .scanline {
+    position: absolute;
+    left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(16,185,129,0.9), transparent);
+    filter: blur(0.5px);
+    opacity: .8;
+    animation: scan 3.2s linear infinite;
+    top: -2px;
+  }
+  @keyframes scan {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(280px); }
+  }
+  .bar-track {
+    background: linear-gradient(180deg, #0b1220, #070b14);
+    border: 1px solid rgba(55,65,81,0.8);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .bar-fill {
+    background: linear-gradient(90deg, #059669, #10b981, #34d399);
+    box-shadow: 0 0 18px rgba(16,185,129,0.5);
+    transition: width 1.2s cubic-bezier(.2,.8,.2,1);
+  }
+  .bar-fill-amber {
+    background: linear-gradient(90deg, #d97706, #f59e0b, #fbbf24);
+    box-shadow: 0 0 18px rgba(245,158,11,0.45);
+  }
+  .crt::after {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 2px, transparent 3px);
+    pointer-events: none; mix-blend-mode: overlay; opacity: .25;
+  }
+</style>
+</head>
+<body class="grid-bg crt min-h-screen text-slate-200 selection:bg-emerald-500/30 selection:text-emerald-200">
+  <div class="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 py-4">
+    <header class="flex items-center justify-between gap-3 border-b border-gray-800/80 pb-3">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.8)] animate-pulse"></span>
+        <h1 class="mono text-[18px] sm:text-[20px] font-bold tracking-widest text-white">PERMITINTEL <span class="text-emerald-400">v1.3</span></h1>
+        <span class="hidden md:inline-flex items-center gap-2 ml-2 pl-3 border-l border-gray-800 mono text-[11px] tracking-widest text-slate-500">
+          BLOOMBERG TERMINAL EMULATION
+        </span>
+      </div>
+      <div class="flex items-center gap-3 sm:gap-5 mono text-[11px]">
+        <div class="hidden sm:flex items-center gap-2 text-slate-500">
+          <span class="h-1 w-1 bg-slate-600 rounded-full"></span> FRED
+          <span class="h-1 w-1 bg-slate-600 rounded-full"></span> CENSUS BLDG
+          <span class="h-1 w-1 bg-slate-600 rounded-full"></span> REAL-TIME
+        </div>
+        <div class="text-emerald-400 font-medium tracking-wider" id="bb-time">--:--:--</div>
+      </div>
+    </header>
+
+    <main class="grid grid-cols-12 gap-4 mt-4">
+      <section class="col-span-12 xl:col-span-8 space-y-4">
+        <div class="panel rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 border-b border-gray-800/80 bg-[#050a14]/70">
+            <div class="mono text-[11px] tracking-widest text-slate-400">LIVE SIGNAL • AUSTIN-ROUND ROCK-GEORGETOWN, TX MSA</div>
+            <div class="flex items-center gap-3 mono text-[10px]">
+              <span class="text-slate-500">LATENCY</span>
+              <span class="text-emerald-400">12ms</span>
+              <span class="text-slate-600">|</span>
+              <span class="text-slate-500">UPDATED</span>
+              <span class="text-slate-300">2026-06-02 09:14 ET</span>
+            </div>
+          </div>
+
+          <div class="p-4 md:p-6">
+            <div class="glow-box rounded-xl p-6 md:p-10 overflow-hidden">
+              <div class="scanline"></div>
+              <div class="flex flex-col items-center text-center">
+                <div class="mono text-[11px] tracking-[0.2em] text-emerald-300/80">PERMITINTEL COMPOSITE SCORE</div>
+                <div class="mt-4 mono font-bold text-[96px] leading-none tracking-tighter text-emerald-400" style="text-shadow:0 0 40px rgba(16,185,129,0.45), 0 0 80px rgba(16,185,129,0.25)">83.7</div>
+                <div class="mt-3 inline-flex items-center gap-2">
+                  <span class="px-5 py-1.5 bg-emerald-500 text-black font-black tracking-[0.25em] mono text-[18px] rounded-sm shadow-[0_0_30px_rgba(16,185,129,0.5)]">GO</span>
+                  <span class="mono text-[11px] text-emerald-300/70">STRONG BUY SIGNAL • CONFIDENCE 91%</span>
+                </div>
+                <div class="mt-6 grid grid-cols-3 gap-6 w-full max-w-2xl">
+                  <div class="panel rounded-lg p-3">
+                    <div class="mono text-[10px] text-slate-500">PERMITS Y/Y</div>
+                    <div class="mono text-xl text-white mt-1">+23.4%</div>
+                  </div>
+                  <div class="panel rounded-lg p-3">
+                    <div class="mono text-[10px] text-slate-500">INVENTORY</div>
+                    <div class="mono text-xl text-white mt-1">2.1 mo</div>
+                  </div>
+                  <div class="panel rounded-lg p-3">
+                    <div class="mono text-[10px] text-slate-500">HPI 3M</div>
+                    <div class="mono text-xl text-emerald-400 mt-1">+1.8%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="panel rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div class="mono text-[11px] tracking-widest text-slate-400">HPI MOMENTUM</div>
+              <div class="mono text-[11px] text-emerald-400">46.8 / 60</div>
+            </div>
+            <div class="mt-3 bar-track rounded-full h-[10px] w-full overflow-hidden">
+              <div class="bar-fill h-full rounded-full" style="width:78%"></div>
+            </div>
+            <div class="mt-2 mono text-[10px] text-slate-500">FHFA All-Transactions • 3mo annualized</div>
+          </div>
+          <div class="panel rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div class="mono text-[11px] tracking-widest text-slate-400">10Y-2Y SPREAD</div>
+              <div class="mono text-[11px] text-emerald-400">29.4 / 30</div>
+            </div>
+            <div class="mt-3 bar-track rounded-full h-[10px] w-full overflow-hidden">
+              <div class="bar-fill h-full rounded-full" style="width:98%"></div>
+            </div>
+            <div class="mt-2 mono text-[10px] text-slate-500">FRED T10Y2Y • +41 bps</div>
+          </div>
+          <div class="panel rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div class="mono text-[11px] tracking-widest text-slate-400">MORTGAGE STRESS</div>
+              <div class="mono text-[11px] text-amber-400">7.5 / 10</div>
+            </div>
+            <div class="mt-3 bar-track rounded-full h-[10px] w-full overflow-hidden">
+              <div class="bar-fill-amber h-full rounded-full" style="width:75%"></div>
+            </div>
+            <div class="mt-2 mono text-[10px] text-slate-500">30Y Fixed 6.87% • Affordability improving</div>
+          </div>
+        </div>
+
+        <div class="panel rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="mono text-[11px] tracking-widest text-slate-400">SIGNAL COMPONENTS</div>
+            <div class="mono text-[10px] text-slate-500">WEIGHTED MODEL v1.3</div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full mono text-[12px]">
+              <thead class="text-slate-500 border-b border-gray-800">
+                <tr class="[&>th]:text-left [&>th]:py-2 [&>th]:font-medium [&>th]:tracking-wider">
+                  <th>FACTOR</th><th>SOURCE</th><th class="text-right">WEIGHT</th><th class="text-right">RAW</th><th class="text-right">SCORE</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-900/80">
+                <tr class="[&>td]:py-2"><td class="text-slate-300">Permits 3M Momentum</td><td class="text-slate-500">Census BP</td><td class="text-right">30%</td><td class="text-right">+18.2%</td><td class="text-right text-emerald-400">28.1</td></tr>
+                <tr class="[&>td]:py-2"><td class="text-slate-300">HPI Acceleration</td><td class="text-slate-500">FHFA</td><td class="text-right">25%</td><td class="text-right">+1.8%</td><td class="text-right text-emerald-400">23.4</td></tr>
+                <tr class="[&>td]:py-2"><td class="text-slate-300">Yield Curve</td><td class="text-slate-500">FRED</td><td class="text-right">20%</td><td class="text-right">+41bp</td><td class="text-right text-emerald-400">19.6</td></tr>
+                <tr class="[&>td]:py-2"><td class="text-slate-300">Mortgage Rate Delta</td><td class="text-slate-500">FRED MORTGAGE30US</td><td class="text-right">15%</td><td class="text-right">-0.31%</td><td class="text-right text-amber-400">8.2</td></tr>
+                <tr class="[&>td]:py-2"><td class="text-slate-300">Inventory Drawdown</td><td class="text-slate-500">Local MLS</td><td class="text-right">10%</td><td class="text-right">2.1mo</td><td class="text-right text-emerald-400">4.4</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <aside class="col-span-12 xl:col-span-4 space-y-4">
+        <div class="panel rounded-xl p-4">
+          <div class="mono text-[11px] tracking-widest text-slate-400 mb-3">SIGNAL LEGEND</div>
+          <div class="space-y-3 mono text-[12px]">
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-900/60">
+              <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span><span class="text-emerald-300 font-medium">GO</span></div>
+              <div class="text-slate-400">&gt; 80.0</div>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-amber-950/30 border border-amber-900/50">
+              <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-amber-400"></span><span class="text-amber-300 font-medium">CAUTION</span></div>
+              <div class="text-slate-400">60.0 – 80.0</div>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-red-950/30 border border-red-900/50">
+              <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-red-400"></span><span class="text-red-300 font-medium">NO-GO</span></div>
+              <div class="text-slate-400">&lt; 60.0</div>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-500 leading-relaxed">GO = Permit growth + price momentum + favorable rates. Model triggers at 83.7, exceeds institutional threshold.</div>
+          </div>
+        </div>
+
+        <div class="panel rounded-xl p-4">
+          <div class="mono text-[11px] tracking-widest text-slate-400 mb-3">HISTORICAL ACCURACY</div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="panel rounded-lg p-3 text-center">
+              <div class="mono text-[10px] text-slate-500">6M HIT RATE</div>
+              <div class="mono text-2xl text-white mt-1">94.3%</div>
+              <div class="text-[10px] text-emerald-400 mt-1">+2.1% vs v1.2</div>
+            </div>
+            <div class="panel rounded-lg p-3 text-center">
+              <div class="mono text-[10px] text-slate-500">AVG ALPHA</div>
+              <div class="mono text-2xl text-white mt-1">+18.7%</div>
+              <div class="text-[10px] text-slate-500 mt-1">vs MSA median</div>
+            </div>
+            <div class="panel rounded-lg p-3 text-center">
+              <div class="mono text-[10px] text-slate-500">SAMPLE</div>
+              <div class="mono text-2xl text-white mt-1">217</div>
+              <div class="text-[10px] text-slate-500 mt-1">signals since 2020</div>
+            </div>
+          </div>
+          
+          <div class="mt-4 h-[64px] w-full bar-track rounded-md overflow-hidden relative">
+            <div class="absolute inset-0 flex items-end justify-between gap-[3px] px-3 pb-1">
+              <div class="w-[6%] bg-emerald-500/40 h-[45%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/50 h-[58%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/60 h-[62%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/50 h-[50%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/70 h-[75%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/80 h-[82%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/75 h-[68%] rounded-t-sm"></div>
+              <div class="w-[6%] bg-emerald-500/90 h-[92%] rounded-t-sm" style="box-shadow: 0 0 10px rgba(16,185,129,0.3)"></div>
+              <div class="w-[6%] bg-emerald-400 h-[100%] rounded-t-sm" style="box-shadow: 0 0 15px rgba(16,185,129,0.5)"></div>
+            </div>
+          </div>
+          <div class="flex justify-between items-center mt-1.5 mono text-[9px] text-slate-500 px-1">
+            <span>Q1 2024</span>
+            <span>RUNNING HISTORICAL MOMENTUM (TRAILING)</span>
+            <span>CURRENT</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    function updateClock() {
+      const timeContainer = document.getElementById('bb-time');
+      if (!timeContainer) return;
+      const now = new Date();
+      const options = { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      timeContainer.textContent = formatter.format(now) + ' EDT';
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>
