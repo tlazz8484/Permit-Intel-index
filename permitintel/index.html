@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PermitIntel • Engine Library</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#020617;--panel:#0b1120;--accent:#10b981}
+body{background:var(--bg);color:#e2e8f0;font-family:Inter,sans-serif}
+.mono{font-family:'IBM Plex Mono',monospace}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(148,163,184,.12);backdrop-filter:blur(12px)}
+.card:hover{border-color:rgba(16,185,129,.5);transform:translateY(-2px);transition:all .2s}
+.glow{box-shadow:0 0 40px rgba(16,185,129,.08)}
+</style>
+</head>
+<body>
+<div class="max-w-7xl mx-auto p-6 md:p-10">
+<header class="mb-12">
+<div class="flex items-baseline gap-4">
+<h1 class="text-5xl font-bold tracking-tight">PermitIntel</h1>
+<span class="mono text-sm px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">26 ENGINES</span>
+</div>
+<p class="text-zinc-400 mt-3 max-w-2xl">Proprietary algorithms that predict permit delays, velocity, and fiscal capacity. LSCI v2 core disguises ERAF/UAAL signals.</p>
+</header>
+
+<div class="grid lg:grid-cols-3 md:grid-cols-2 gap-5" id="grid"></div>
+
+<section class="mt-20 pt-12 border-t border-zinc-800">
+<div class="flex items-baseline gap-3 mb-6">
+<h2 class="text-3xl font-bold">Bid Intelligence</h2>
+<span class="mono text-xs px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">NEW BRANCH</span>
+</div>
+<p class="text-zinc-400 mb-8 max-w-3xl">Aggregated job/project bid requests for contractors, subs, and developers. Scores by duration, pricing, locality.</p>
+
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="card rounded-2xl p-6">
+<p class="mono text-xs text-amber-400 mb-2">ENGINE 27</p>
+<h3 class="font-semibold text-lg">Bid Velocity</h3>
+<p class="text-sm text-zinc-500 mt-2">Requests/week by trade & city</p>
+<div class="mt-4 pt-4 border-t border-zinc-800">
+<p class="mono text-[11px] text-zinc-500">ALGO</p>
+<p class="mono text-xs mt-1">bids × win_rate × avg_value</p>
+</div>
+</div>
+<div class="card rounded-2xl p-6">
+<p class="mono text-xs text-amber-400 mb-2">ENGINE 28</p>
+<h3 class="font-semibold text-lg">Contractor Score</h3>
+<p class="text-sm text-zinc-500 mt-2">Duration, price, completion</p>
+<div class="mt-4 pt-4 border-t border-zinc-800">
+<p class="mono text-[11px] text-zinc-500">ALGO</p>
+<p class="mono text-xs mt-1">0.4×time + 0.3×budget + 0.3×quality</p>
+</div>
+</div>
+<div class="card rounded-2xl p-6">
+<p class="mono text-xs text-amber-400 mb-2">ENGINE 29</p>
+<h3 class="font-semibold text-lg">Duration Predictor</h3>
+<p class="text-sm text-zinc-500 mt-2">Avg days by project type</p>
+<div class="mt-4 pt-4 border-t border-zinc-800">
+<p class="mono text-[11px] text-zinc-500">ALGO</p>
+<p class="mono text-xs mt-1">baseline × locality × complexity</p>
+</div>
+</div>
+<div class="card rounded-2xl p-6">
+<p class="mono text-xs text-amber-400 mb-2">ENGINE 30</p>
+<h3 class="font-semibold text-lg">Pricing Intel</h3>
+<p class="text-sm text-zinc-500 mt-2">Median bids by region</p>
+<div class="mt-4 pt-4 border-t border-zinc-800">
+<p class="mono text-[11px] text-zinc-500">ALGO</p>
+<p class="mono text-xs mt-1">median × market_adj × season</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+
+<script>
+const features = [{"no": 1, "public_name": "Fiscal Capacity Engine", "private_name": "ERAF Engine (Educational Revenue Augmentation Fund)", "what_it_does": "Directly siphons 21.8% of LA County property tax growth to state schools before cities see it. When AV rises, ERAF rises automatically, cutting city planning budgets. Permits fall 6 months later.", "why_important": "No one tracks this. Industry watches rates; ERAF is mandatory, a-political, and 3x larger impact. It's the hidden tax on growth.", "challenges_wisdom": "Never mentioned in conventional wisdom. Planners blame 'staff shortages' not knowing why.", "importance": 10, "algorithms": ["ERAF_drag = 0.218 * property_tax_growth", "net_revenue = gross - ERAF_drag", "fiscal_pressure = ERAF_drag / general_fund"]}, {"no": 2, "public_name": "Pension Burden Index", "private_name": "UAAL Stress Model (Unfunded Actuarial Accrued Liability)", "what_it_does": "Pension debt payments crowd out operating budgets. Bell Gardens pays $1.2M/year to CalPERS, equal to 3 planners.", "why_important": "Shows long-term fiscal drag. Combined with ERAF, explains why cities can't hire despite rising tax base.", "challenges_wisdom": "Mentioned in bond ratings but ignored in permit forecasts.", "importance": 7, "algorithms": ["UAAL_ratio = UAAL_payment / budget", "planner_cost = 150000", "capacity_lost = UAAL_payment / planner_cost"]}, {"no": 3, "public_name": "LSCI v2", "private_name": "LSCI v2 (Local Service Capacity Index)", "what_it_does": "Public proxy combining refis, business filings, lottery sales. Predicts ERAF moves without naming it.", "why_important": "Your moat's disguise. Gives users plausible story while retaining 91% of ERAF signal.", "challenges_wisdom": "Novel \u2014 no industry uses this combination.", "importance": 9, "algorithms": ["refi_zscore = (MBA_refi - \u03bc) / \u03c3", "biz_zscore = (CA_filings - \u03bc) / \u03c3", "lottery_zscore = (sales - \u03bc) / \u03c3", "LSCI = 0.4*refi + 0.35*biz + 0.25*lottery", "lag = 6 months"]}, {"no": 4, "public_name": "Demand Surge Predictor", "private_name": "Processing Velocity Score", "what_it_does": "0-100 index translating fiscal stress into user-friendly speed rating. 41/100 = slow.", "why_important": "Makes complex finance digestible for developers and lenders.", "challenges_wisdom": "Industry uses anecdotal 'backlog' reports, not quantitative scores.", "importance": 8, "algorithms": ["surge = \u0394LSCI * 0.73", "lead_time = 180 days", "confidence = 0.84"]}, {"no": 5, "public_name": "Processing Delay Engine", "private_name": "Estimated_Processing_Delay", "what_it_does": "Weeks by city. Direct output developers need for pro formas.", "why_important": "Highest value feature. Turns fiscal data into actionable timeline.", "challenges_wisdom": "Cities publish ranges, but they're static and wrong.", "importance": 10, "algorithms": ["city_base = 19 weeks", "model_forecast = 14.3 weeks", "adjustment = fiscal_pressure * 1.24", "MAE = 3.2%"]}, {"no": 6, "public_name": "Velocity Tracker", "private_name": "Permit_Velocity_Tracker", "what_it_does": "Quarterly forecast of permit counts countywide.", "why_important": "Core product. Predicts construction starts, lender volume, material demand.", "challenges_wisdom": "Everyone uses trailing 12 months. You lead by 6 months.", "importance": 10, "algorithms": ["velocity = issued / applied", "forecast_model = ARIMA + LSCI", "error_rate = -1.8% (Q1 backtest)", "industry_avg = \u00b112-15%"]}, {"no": 7, "public_name": "Local Service Capacity Index (public)", "private_name": "Local Service Capacity Index (public)", "what_it_does": "Same as LSCI v2 but user-facing name.", "why_important": "Branding for disguise.", "challenges_wisdom": NaN, "importance": 8, "algorithms": ["Proprietary algorithm for Local Service Capacity Index (public)", "Details in private repo"]}, {"no": 8, "public_name": "County Fiscal Capacity Index", "private_name": "County Fiscal Capacity Index", "what_it_does": "% of property tax retained locally (78.2% in 2025). Inverse of ERAF.", "why_important": "Simpler story than ERAF dollars. Shows cities losing share.", "challenges_wisdom": "Never calculated publicly.", "importance": 7, "algorithms": ["Proprietary algorithm for County Fiscal Capacity Index", "Details in private repo"]}, {"no": 9, "public_name": "Housing Turnover Velocity", "private_name": "Housing Turnover Velocity", "what_it_does": "Home sales rate. Drives AV growth \u2192 ERAF growth.", "why_important": "Proxy #1. Public data, high correlation (0.91).", "challenges_wisdom": "Realtors track it for prices, not permits.", "importance": 8, "algorithms": ["Proprietary algorithm for Housing Turnover Velocity", "Details in private repo"]}, {"no": 10, "public_name": "Commercial Occupancy Inverse", "private_name": "Commercial Occupancy Inverse", "what_it_does": "Vacancy down = values up = ERAF up.", "why_important": "Proxy #2. Links business activity to fiscal stress.", "challenges_wisdom": "CBRE reports used for rents only.", "importance": 6, "algorithms": ["Proprietary algorithm for Commercial Occupancy Inverse", "Details in private repo"]}, {"no": 11, "public_name": "State Fiscal Health", "private_name": "State Fiscal Health", "what_it_does": "CA budget deficit triggers ERAF raids.", "why_important": "Proxy #3. Explains state-driven spikes.", "challenges_wisdom": "Tracked by Sacramento watchers, not builders.", "importance": 7, "algorithms": ["Proprietary algorithm for State Fiscal Health", "Details in private repo"]}, {"no": 12, "public_name": "6-Month Lead Indicator", "private_name": "6-Month Lead Indicator", "what_it_does": "Proves model predicts before market.", "why_important": "Your proof point for sales. Shows alpha.", "challenges_wisdom": "No competitor has lead time.", "importance": 9, "algorithms": ["Proprietary algorithm for 6-Month Lead Indicator", "Details in private repo"]}, {"no": 13, "public_name": "Staffing Gap Estimator", "private_name": "Staffing Gap Estimator", "what_it_does": "Converts ERAF dollars to planner headcount (e.g., $967M = 340 planners).", "why_important": "Makes fiscal abstract concrete.", "challenges_wisdom": "Cities don't publish this math.", "importance": 7, "algorithms": ["Proprietary algorithm for Staffing Gap Estimator", "Details in private repo"]}, {"no": 14, "public_name": "Delay Attribution", "private_name": "Delay Attribution", "what_it_does": "Breaks 19 weeks into component causes.", "why_important": "Transparency builds trust.", "challenges_wisdom": "Novel decomposition.", "importance": 6, "algorithms": ["Proprietary algorithm for Delay Attribution", "Details in private repo"]}, {"no": 15, "public_name": "Permit Volatility Index", "private_name": "Permit Volatility Index", "what_it_does": "Std dev of quarterly changes. Signals market uncertainty.", "why_important": "Helps lenders price risk.", "challenges_wisdom": "Not used.", "importance": 5, "algorithms": ["Proprietary algorithm for Permit Volatility Index", "Details in private repo"]}, {"no": 16, "public_name": "Construction Activity Forecast", "private_name": "Construction Activity Forecast", "what_it_does": "Permits \u00d7 avg valuation = $ volume.", "why_important": "Connects permits to GDP, jobs, materials.", "challenges_wisdom": "Dodge/ConstructConnect does this lagging.", "importance": 8, "algorithms": ["Proprietary algorithm for Construction Activity Forecast", "Details in private repo"]}, {"no": 17, "public_name": "Mortgage Rate Sensitivity Overlay", "private_name": "Mortgage Rate Sensitivity Overlay", "what_it_does": "Combines ERAF drag + rate impact.", "why_important": "Shows why 2022 crash was fiscal, not just rates.", "challenges_wisdom": "Industry blames rates alone (wrong).", "importance": 8, "algorithms": ["Proprietary algorithm for Mortgage Rate Sensitivity Overlay", "Details in private repo"]}, {"no": 18, "public_name": "Local Service Capacity Report", "private_name": "Local Service Capacity Report", "what_it_does": "Monthly newsletter packaging LSCI.", "why_important": "Distribution channel for insights.", "challenges_wisdom": "No equivalent.", "importance": 7, "algorithms": ["Proprietary algorithm for Local Service Capacity Report", "Details in private repo"]}, {"no": 19, "public_name": "'Why Permits Are Slow' explainer", "private_name": "'Why Permits Are Slow' explainer", "what_it_does": "Public narrative using proxies.", "why_important": "Educates market without giving away ERAF.", "challenges_wisdom": NaN, "importance": 6, "algorithms": ["Proprietary algorithm for 'Why Permits Are Slow' explainer", "Details in private repo"]}, {"no": 20, "public_name": "City Spotlight", "private_name": "City Spotlight", "what_it_does": "Deep dives per city.", "why_important": "Hyperlocal alpha for developers.", "challenges_wisdom": "Cities publish PDFs, not analysis.", "importance": 6, "algorithms": ["Proprietary algorithm for City Spotlight", "Details in private repo"]}, {"no": 21, "public_name": "Backtest Proof Pack", "private_name": "Backtest Proof Pack", "what_it_does": "Charts showing 6-month lead.", "why_important": "Sales collateral.", "challenges_wisdom": NaN, "importance": 7, "algorithms": ["Proprietary algorithm for Backtest Proof Pack", "Details in private repo"]}, {"no": 22, "public_name": "Auto-update: MBA Refi Applications", "private_name": "Auto-update: MBA Refi Applications", "what_it_does": "Weekly refi index predicts AV growth slowdown.", "why_important": "Earliest signal in proxy chain.", "challenges_wisdom": "MBA data used for mortgage volume only.", "importance": 8, "algorithms": ["Proprietary algorithm for Auto-update: MBA Refi Applications", "Details in private repo"]}, {"no": 23, "public_name": "Auto-update: CA SOS Business Filings", "private_name": "Auto-update: CA SOS Business Filings", "what_it_does": "New businesses \u2192 commercial demand \u2192 values.", "why_important": "Leading indicator of tax base growth.", "challenges_wisdom": "Economic dev uses it, not permit forecasters.", "importance": 7, "algorithms": ["Proprietary algorithm for Auto-update: CA SOS Business Filings", "Details in private repo"]}, {"no": 24, "public_name": "Auto-update: CA Lottery Sales", "private_name": "Auto-update: CA Lottery Sales", "what_it_does": "Inverse proxy for state fiscal stress.", "why_important": "Weird but works (r=0.71). Perfect disguise.", "challenges_wisdom": "Never used in real estate.", "importance": 6, "algorithms": ["Proprietary algorithm for Auto-update: CA Lottery Sales", "Details in private repo"]}, {"no": 25, "public_name": "Auto-update: LA County Assessor AV", "private_name": "Auto-update: LA County Assessor AV", "what_it_does": "Annual assessed value \u2014 direct ERAF input.", "why_important": "Ground truth for hidden model.", "challenges_wisdom": "Assessor publishes, no one models impact.", "importance": 9, "algorithms": ["Proprietary algorithm for Auto-update: LA County Assessor AV", "Details in private repo"]}, {"no": 26, "public_name": "Auto-update: AF91 PDF Scraper", "private_name": "Auto-update: AF91 PDF Scraper", "what_it_does": "Scrapes account 400.00 ERAF each September.", "why_important": "Your secret source. Gives 7-month lead.", "challenges_wisdom": "Only county auditors read this.", "importance": 10, "algorithms": ["Proprietary algorithm for Auto-update: AF91 PDF Scraper", "Details in private repo"]}];
+const grid = document.getElementById('grid');
+
+features.forEach(f => {
+  const importanceColor = f.importance >= 9 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 
+                         f.importance >= 7 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                         'text-zinc-400 border-zinc-700 bg-zinc-800/50';
+  
+  const card = document.createElement('div');
+  card.className = 'card glow rounded-2xl p-6';
+  card.innerHTML = `
+    <div class="flex justify-between items-start mb-4">
+      <span class="mono text-xs text-zinc-500">#${String(f.no).padStart(2,'0')}</span>
+      <span class="mono text-[10px] px-2 py-1 rounded-full border ${importanceColor}">${f.importance}/10</span>
+    </div>
+    <h3 class="font-bold text-xl mb-2">${f.public_name}</h3>
+    <p class="text-sm text-zinc-400 leading-relaxed mb-4">${f.what_it_does}</p>
+    
+    <div class="space-y-3">
+      <div>
+        <p class="mono text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Why it matters</p>
+        <p class="text-xs text-zinc-300">${f.why_important.substring(0,110)}...</p>
+      </div>
+      <div class="pt-3 border-t border-zinc-800/50">
+        <p class="mono text-[10px] uppercase tracking-wider text-emerald-400/70 mb-1">Algorithm</p>
+        <code class="mono text-[11px] text-zinc-300 block">${f.algorithms[0]}</code>
+        ${f.algorithms[1] ? `<code class="mono text-[11px] text-zinc-500 block mt-1">${f.algorithms[1]}</code>` : ''}
+      </div>
+    </div>
+  `;
+  grid.appendChild(card);
+});
+</script>
+</body></html>
+
