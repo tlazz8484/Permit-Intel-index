@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  // Idempotency: skip if already initialized (e.g., server-side injection
+  // followed by client-side inject-javascript via the Bloks webview component).
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      p.timestamp = message.timestamp;
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<!-- PLAYABLE_TOUCH_PATCH_V1 --><script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSCI Newsletter - July 2026 | Issue #002</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .serif { font-family: 'Source Serif 4', Georgia, serif; }
+        @media print {
+            body { background: white; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+    <div class="max-w-6xl mx-auto my-4 md:my-8 bg-white shadow-2xl shadow-slate-300/50">
+        
+        <!-- Header -->
+        <header class="border-t-[12px] border-blue-800">
+            <div class="px-6 md:px-12 pt-8 pb-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-blue-700 font-semibold tracking-[0.2em] text-xs uppercase">Land Supply Constraint Index</div>
+                        <h1 class="serif text-[42px] md:text-[56px] leading-none font-bold text-slate-900 tracking-tight">LSCI Newsletter</h1>
+                    </div>
+                    <div class="text-right shrink-0 pl-4">
+                        <div class="inline-block bg-blue-800 text-white px-3 py-1.5 rounded text-xs font-bold tracking-wider">ISSUE #002</div>
+                        <div class="mt-2 text-slate-700 font-medium">July 2026</div>
+                    </div>
+                </div>
+                
+                <!-- Key Metrics Bar -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-200">
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wide font-medium">Development Friction (DFP)</div>
+                        <div class="text-3xl font-semibold text-slate-900 mt-1">0.765 <span class="text-sm font-normal text-red-600">▲ +0.03</span></div>
+                        <div class="text-xs text-slate-500 mt-0.5">High Friction Zone</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wide font-medium">LSCI Composite</div>
+                        <div class="text-3xl font-semibold text-slate-900 mt-1">38<span class="text-xl text-slate-400">/100</span> <span class="text-sm font-normal text-red-600">▼ -2</span></div>
+                        <div class="text-xs text-slate-500 mt-0.5">Severe Constraint</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wide font-medium">Bell Gardens Delay</div>
+                        <div class="text-3xl font-semibold text-slate-900 mt-1">19.2 <span class="text-xl">wks</span></div>
+                        <div class="text-xs text-slate-500 mt-0.5">Target: 8.0 wks</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wide font-medium">Forecast</div>
+                        <div class="text-2xl font-semibold text-emerald-700 mt-1.5">Improvement</div>
+                        <div class="text-xs text-slate-500 mt-0.5">Expected Q4 2026</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="px-6 md:px-12 pb-12">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-x-10 gap-y-8">
+                
+                <!-- MAIN COLUMN -->
+                <div class="lg:col-span-8">
+                    <article>
+                        <h2 class="serif text-3xl md:text-[38px] leading-tight font-bold text-slate-900 mb-4">
+                            Why ERAF Predicts Permits: The Math Behind the 6-Month Lead
+                        </h2>
+                        <p class="text-slate-600 text-[15px] mb-6">By LSCI Analytics Team | July Data Release</p>
+
+                        <div class="prose prose-slate max-w-none text-[16px] leading-relaxed">
+                            <p class="text-lg text-slate-800 leading-snug font-medium">Our June analysis flagged a correlation. July's model confirms causation. The Educational Revenue Augmentation Fund (ERAF) shift is not a fiscal footnote—it is a direct, mechanical predictor of planning department capacity with a consistent six-month lead on permit velocity.</p>
+                            
+                            <p class="mt-4">The mechanism is brutally simple. Under California law, ERAF automatically diverts a fixed percentage of every dollar of new property tax growth away from cities and counties to backfill schools.</p>
+
+                            <div class="my-6 p-5 bg-blue-50 border-l-4 border-blue-800 rounded-r-lg">
+                                <div class="font-mono text-center">
+                                    <span class="text-slate-600">ERAF Diversion = </span>
+                                    <span class="text-2xl font-semibold text-blue-900">0.218 × AV Growth</span>
+                                </div>
+                                <p class="text-sm text-slate-600 text-center mt-2">21.8% of all new Assessed Value is diverted before cities budget it</p>
+                            </div>
+
+                            <p>Statewide in FY24-25, that equaled <strong>$967 million</strong> diverted from LA County municipalities. At an all-in cost of $145,000 per planner (salary, benefits, PERS), that's 6,669 planner-months—or the permanent equivalent of <strong>175 full-time planners</strong> removed from the system before a single budget hearing.</p>
+
+                            <p class="mt-4"><strong>Why the 6-month lead?</strong> City budgets are adopted in June. The LA County Auditor-Controller finalizes the actual ERAF takeaway the following January. Cities budget conservatively in Q3, freezing discretionary hires (planners, inspectors) immediately. That hiring freeze hits permit desks in Q4—exactly six months later. Our DFP model now captures this lag directly.</p>
+                        </div>
+                    </article>
+
+                    <!-- City Spotlight -->
+                    <div class="mt-10 pt-8 border-t-2 border-slate-900">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-1.5 h-8 bg-blue-800"></div>
+                            <h3 class="serif text-2xl font-bold text-slate-900">City Spotlight: Bell Gardens Deep Dive</h3>
+                        </div>
+                        
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="font-bold text-lg text-slate-900">Bell Gardens Planning Department</h4>
+                                    <p class="text-sm text-slate-600">Current Processing Time: <span class="font-semibold text-red-700">19.2 weeks</span> (240% of 8-week target)</p>
+                                </div>
+                                <span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-1 rounded-full">CRITICAL</span>
+                            </div>
+
+                            <p class="text-[15px] text-slate-700 mb-4">Here is the exact math converting fiscal stress into permit delays:</p>
+
+                            <div class="space-y-2 font-mono text-sm">
+                                <div class="flex justify-between py-2 border-b border-slate-200">
+                                    <span>FY25 Property Tax Growth</span>
+                                    <span class="font-semibold">+$5.80M</span>
+                                </div>
+                                <div class="flex justify-between py-2 border-b border-slate-200 text-red-700">
+                                    <span>Less: ERAF Diversion (21.8%)</span>
+                                    <span class="font-semibold">-$1.26M</span>
+                                </div>
+                                <div class="flex justify-between py-2 border-b border-slate-200 text-red-700">
+                                    <span>Less: UAAL Pension Payment</span>
+                                    <span class="font-semibold">-$1.20M</span>
+                                </div>
+                                <div class="flex justify-between py-2 border-b-2 border-slate-400 font-bold">
+                                    <span>= Net Discretionary Growth</span>
+                                    <span>$3.34M</span>
+                                </div>
+                                <div class="flex justify-between py-2">
+                                    <span>/ Planner Cost ($145k)</span>
+                                    <span class="font-semibold">= 23 Planners Funded</span>
+                                </div>
+                                <div class="flex justify-between py-2">
+                                    <span>Planners Needed for Target</span>
+                                    <span class="font-semibold text-blue-800">31 Planners</span>
+                                </div>
+                                <div class="flex justify-between py-3 mt-2 bg-red-50 px-3 rounded border border-red-200 font-bold text-red-900">
+                                    <span>DEFICIT = 8 Planners</span>
+                                    <span>→ 19.2 Week Delay</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Algorithm Update -->
+                    <div class="mt-10">
+                        <h3 class="serif text-2xl font-bold text-slate-900 mb-4">Algorithm Update: LSCI v2.0</h3>
+                        <p class="text-[15px] text-slate-700 mb-5">We've re-weighted LSCI to predict velocity, not just volume. v2 now uses non-linear exponents and three core drivers:</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm font-semibold text-slate-800">40% — Housing Turnover Rate</span>
+                                    <span class="text-sm font-mono text-blue-800">0.40</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-800 h-2.5 rounded-full" style="width: 40%"></div></div>
+                                <p class="text-xs text-slate-600 mt-1.5">Prop 13 means cities only get new money when homes sell. No turnover = no reassessment = no staff budget.</p>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm font-semibold text-slate-800">30% — Commercial Vacancy (Inverted)</span>
+                                    <span class="text-sm font-mono text-blue-700">0.30</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-700 h-2.5 rounded-full" style="width: 30%"></div></div>
+                                <p class="text-xs text-slate-600 mt-1.5">Office-to-industrial conversions are now 61% of all commercial permits. Vacancy predicts filings 3 months ahead.</p>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm font-semibold text-slate-800">30% — State Budget Deficit Ratio</span>
+                                    <span class="text-sm font-mono text-blue-600">0.30</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: 30%"></div></div>
+                                <p class="text-xs text-slate-600 mt-1.5">Sacramento deficits directly trigger ERAF increases and cost-shifts to cities in the next fiscal year.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SIDEBAR -->
+                <div class="lg:col-span-4">
+                    <div class="lg:sticky lg:top-8 space-y-6">
+                        
+                        <!-- How Variables Work -->
+                        <div class="bg-slate-900 text-white rounded-xl p-6">
+                            <h3 class="serif text-xl font-bold mb-3">How Variables Work Together</h3>
+                            <p class="text-slate-300 text-sm mb-4">The core engineering model behind permit speed:</p>
+                            
+                            <div class="bg-slate-800 rounded-lg p-4 font-mono text-center border border-slate-700">
+                                <div class="text-slate-400 text-xs uppercase tracking-wide mb-1">Permit Speed</div>
+                                <div class="text-lg">
+                                    <span class="text-white">=</span>
+                                    <span class="text-emerald-400">(Tax Retained − Pensions)</span>
+                                </div>
+                                <div class="w-3/4 h-px bg-slate-600 mx-auto my-2"></div>
+                                <div class="text-lg text-sky-400">Planner Cost</div>
+                            </div>
+
+                            <div class="mt-4 space-y-3 text-sm">
+                                <div>
+                                    <div class="font-semibold text-sky-300">Tax Re
