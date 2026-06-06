@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Playables SDK -->
+<script>// Playables SDK v1.0.0
+// Game lifecycle bridge: rAF-based game-ready detection + event communication
+(function() {
+  'use strict';
+
+  // Idempotency: skip if already initialized (e.g., server-side injection
+  // followed by client-side inject-javascript via the Bloks webview component).
+  if (window.playablesSDK) return;
+
+  var HANDLER_NAME = 'playablesGameEventHandler';
+  var ANDROID_BRIDGE_NAME = '_MetaPlayablesBridge';
+  var RAF_FRAME_THRESHOLD = 3;
+
+  var gameReadySent = false;
+  var firstInteractionSent = false;
+  var errorSent = false;
+  var frameCount = 0;
+  var originalRAF = window.requestAnimationFrame;
+
+  // --- Transport Layer ---
+
+  function hasIOSBridge() {
+    return !!(window.webkit &&
+              window.webkit.messageHandlers &&
+              window.webkit.messageHandlers[HANDLER_NAME]);
+  }
+
+  function hasAndroidBridge() {
+    return !!(window[ANDROID_BRIDGE_NAME] &&
+              typeof window[ANDROID_BRIDGE_NAME].postEvent === 'function');
+  }
+
+  function isInIframe() {
+    return !!(window.parent && window.parent !== window);
+  }
+
+  function sendEvent(eventName, payload) {
+    var message = {
+      type: eventName,
+      payload: payload || {},
+      timestamp: Date.now()
+    };
+
+    if (hasIOSBridge()) {
+      try {
+        window.webkit.messageHandlers[HANDLER_NAME].postMessage(message);
+      } catch (e) { /* ignore */ }
+      return;
+    }
+
+    if (hasAndroidBridge()) {
+    try {
+      var p = payload || {};
+      p.__secureToken = window.__fbAndroidBridgeAuthToken || '';
+      p.timestamp = message.timestamp;
+      window[ANDROID_BRIDGE_NAME].postEvent(
+        eventName,
+        JSON.stringify(p)
+      );
+    } catch (e) { /* ignore */ }
+    return;
+  }
+
+    if (isInIframe()) {
+      try {
+        window.parent.postMessage(message, '*');
+      } catch (e) { /* ignore */ }
+      return;
+    }
+  }
+
+  // --- rAF Game-Ready Detection ---
+
+  function onFrame() {
+    if (gameReadySent) return;
+
+    frameCount++;
+    if (frameCount >= RAF_FRAME_THRESHOLD) {
+      gameReadySent = true;
+      sendEvent('game_ready', {
+        frame_count: frameCount,
+        detected_at: Date.now()
+      });
+      return;
+    }
+
+    originalRAF.call(window, onFrame);
+  }
+
+  if (originalRAF) {
+    window.requestAnimationFrame = function(callback) {
+      if (!gameReadySent) {
+        return originalRAF.call(window, function(timestamp) {
+          frameCount++;
+          if (frameCount >= RAF_FRAME_THRESHOLD && !gameReadySent) {
+            gameReadySent = true;
+            sendEvent('game_ready', {
+              frame_count: frameCount,
+              detected_at: Date.now()
+            });
+          }
+          callback(timestamp);
+        });
+      }
+      return originalRAF.call(window, callback);
+    };
+  }
+
+  // --- First User Interaction Detection ---
+
+  function setupFirstInteractionDetection() {
+    var events = ['touchstart', 'mousedown', 'keydown'];
+
+    function onFirstInteraction() {
+      if (firstInteractionSent) return;
+      firstInteractionSent = true;
+      sendEvent('user_interaction_start', null);
+
+      for (var i = 0; i < events.length; i++) {
+        document.removeEventListener(events[i], onFirstInteraction, true);
+      }
+    }
+
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], onFirstInteraction, true);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFirstInteractionDetection);
+  } else {
+    setupFirstInteractionDetection();
+  }
+
+  // --- Auto Error Capture ---
+
+  window.addEventListener('error', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    sendEvent('error', {
+      message: event.message || 'Unknown error',
+      source: event.filename || '',
+      lineno: event.lineno || 0,
+      colno: event.colno || 0,
+      auto_captured: true
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(event) {
+    if (errorSent) return;
+    errorSent = true;
+    var reason = event.reason;
+    sendEvent('error', {
+      message: (reason instanceof Error) ? reason.message : String(reason),
+      type: 'unhandled_promise_rejection',
+      auto_captured: true
+    });
+  });
+
+  // --- Public API ---
+
+  window.playablesSDK = {
+    complete: function(score) {
+      sendEvent('game_ended', {
+        score: score,
+        completed: true
+      });
+    },
+
+    error: function(message) {
+      if (errorSent) return;
+      errorSent = true;
+      sendEvent('error', {
+        message: message || 'Unknown error',
+        auto_captured: false
+      });
+    },
+
+    sendEvent: function(eventName, payload) {
+      if (!eventName || typeof eventName !== 'string') return;
+      sendEvent(eventName, payload);
+    }
+  };
+
+  // Kick off rAF detection in case no game code calls rAF immediately
+  if (originalRAF) {
+    originalRAF.call(window, onFrame);
+  }
+})();</script>
+<!-- PLAYABLE_TOUCH_PATCH_V1 --><script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PermitIntel – Investor Brief</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+  .flow-node { padding: 6px 10px; background: white; border: 1px solid #d1d5db; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; box-shadow: 0 1px 1px rgba(0,0,0,0.03); }
+  .flow-node.accent { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  .flow-node.warn { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+  .flow-node.pension { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+  .arrow { color: #9ca3af; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-hide-shadow { box-shadow: none !important; }
+    @page { size: Letter; margin: 12mm; }
+  }
+</style>
+</head>
+<body class="bg-white text-gray-900 text-[13.5px] leading-snug">
+  <div class="max-w-[1070px] mx-auto px-6 py-5 print:px-0 print:py-0">
+    
+    <!-- Header -->
+    <header class="flex justify-between items-start border-b border-gray-200 pb-3.5 mb-4">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 bg-[#2563eb] rounded-lg flex items-center justify-center shadow-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg>
+          </div>
+          <span class="font-semibold text-[15px] tracking-tight">PermitIntel</span>
+        </div>
+        <h1 class="text-[26px] md:text-[30px] font-semibold tracking-tight leading-tight mt-2.5 text-gray-900">The Fiscal Engine Behind Permit Delays</h1>
+      </div>
+      <div class="text-right shrink-0 pl-4">
+        <div class="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-semibold">Investor Brief</div>
+        <div class="text-[11px] text-gray-500 mt-1">Confidential • 2024</div>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 print-hide-shadow">
+        <div class="text-[28px] font-bold text-[#2563eb] leading-none tracking-tight">$967M</div>
+        <div class="text-[11px] text-gray-600 mt-1.5 font-medium">LA County ERAF loss / year</div>
+      </div>
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+        <div class="text-[28px] font-bold text-[#2563eb] leading-none tracking-tight">21.8%</div>
+        <div class="text-[11px] text-gray-600 mt-1.5 font-medium">Property tax growth auto-diverted</div>
+      </div>
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+        <div class="text-[28px] font-bold text-[#2563eb] leading-none tracking-tight">19.2</div>
+        <div class="text-[11px] text-gray-600 mt-1.5 font-medium">Weeks avg. permit delay</div>
+      </div>
+      <div class="bg-gray-50 border border-gray-200 rounded-xl p-3">
+        <div class="text-[28px] font-bold text-[#2563eb] leading-none tracking-tight">6 Mo</div>
+        <div class="text-[11px] text-gray-600 mt-1.5 font-medium">Predictive lead time</div>
+      </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-x-6 gap-y-4">
+
+      <!-- LEFT -->
+      <div class="lg:col-span-3 space-y-4">
+        
+        <!-- 1. Problem -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">1. The Problem</h2>
+          <p class="text-gray-800 leading-snug">Cities blame staffing. Developers blame rates. <strong class="font-semibold">Both are wrong.</strong></p>
+          <p class="text-gray-700 mt-2">LA County loses <span class="font-semibold text-gray-900">$967M/year</span> to ERAF (Educational Revenue Augmentation Fund), which automatically diverts <span class="font-semibold text-[#2563eb]">21.8% of property tax growth</span> to schools <em>before</em> cities see it. Budgets shrink while applications rise.</p>
+        </section>
+
+        <!-- 2. Mechanism -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">2. The Mechanism</h2>
+          <div class="border border-gray-200 rounded-xl p-3.5 bg-white">
+            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+              <div class="flow-node">Property Values ↑</div>
+              <div class="arrow">→</div>
+              <div class="flow-node">AV Growth</div>
+              <div class="arrow">→</div>
+              <div class="flow-node accent">ERAF Takes 21.8%</div>
+              <div class="arrow">→</div>
+              <div class="flow-node">City Budget Cut</div>
+              <div class="arrow">→</div>
+              <div class="flow-node">Hiring Freeze</div>
+              <div class="arrow">→</div>
+              <div class="flow-node">Permit Backlog</div>
+              <div class="arrow">→</div>
+              <div class="flow-node warn">19.2-wk delays</div>
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+              <div class="flow-node pension">UAAL Pension: $1.2M/yr</div>
+              <div class="arrow text-lg">↗</div>
+              <span class="text-[11px] text-gray-600">Bell Gardens example — crowds out planners, hits same budget line</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Why Variables -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">3. Why Variables Work Together</h2>
+          <div class="bg-gray-900 text-white rounded-lg p-3 text-center mono text-[13px] tracking-wide">Permit Speed = (Tax Retained − Pensions) ÷ Planner Cost</div>
+          <p class="text-[12px] text-gray-600 mt-2">ERAF and UAAL are <strong>not correlated</strong> (r=0.11). They compound independently — a fiscal vise.</p>
+          
+          <div class="mt-3 border border-gray-200 rounded-xl p-3 bg-gray-50/70">
+            <div class="text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-2">Bell Gardens 2024 Math</div>
+            <div class="grid grid-cols-3 gap-x-3 gap-y-2 text-[12px]">
+              <div><div class="text-gray-500">Tax Growth</div><div class="font-medium">$5.80M</div></div>
+              <div><div class="text-gray-500">− ERAF 21.8%</div><div class="font-medium text-[#2563eb]">−$1.26M</div></div>
+              <div><div class="text-gray-500">= Retained</div><div class="font-medium">$4.54M</div></div>
+              <div><div class="text-gray-500">− UAAL Pensions</div><div class="font-medium text-amber-700">−$1.20M</div></div>
+              <div><div class="text-gray-500">= Net for Staff</div><div class="font-medium">$3.34M</div></div>
+              <div><div class="text-gray-500">÷ $145k/planner</div><div class="font-medium">= 23 planners</div></div>
+            </div>
+            <div class="mt-2.5 pt-2 border-t border-gray-200 text-[11px]">Need 31 planners for workload → <strong class="text-red-700 font-semibold">Deficit of 8 = 19.2 week delay</strong></div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="lg:col-span-2 space-y-4">
+        
+        <!-- 4. Lead -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">4. Our 6-Month Lead</h2>
+          <div class="border border-gray-200 rounded-xl p-3 bg-white">
+            <div class="relative h-[150px]">
+              <canvas id="ccf"></canvas>
+            </div>
+            <div class="flex items-center justify-between mt-2 text-[10.5px] text-gray-600">
+              <div class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-[#2563eb]"></span>PermitIntel</div>
+              <div class="flex items-center gap-1.5"><span class="w-4 border-t-2 border-dashed border-gray-400"></span>Industry (trailing)</div>
+            </div>
+            <p class="text-[12px] text-gray-700 mt-2.5 leading-snug"><strong class="text-[#2563eb] font-semibold">ERAF today → permits in 26 weeks.</strong> Peak cross-correlation r=0.94. Competitors use 12-month trailing permit data — they react after delays hit.</p>
+          </div>
+        </section>
+
+        <!-- 5. Validation -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">5. Validation</h2>
+          <div class="space-y-2.5">
+            <div class="flex gap-2.5 items-start">
+              <div class="mt-0.5 w-4 h-4 rounded-full bg-[#2563eb]/10 flex items-center justify-center shrink-0"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div><span class="font-semibold text-gray-900">0.3% error</span><span class="text-gray-600"> vs LA County Auditor-Controller, 2019–2024</span></div>
+            </div>
+            <div class="flex gap-2.5 items-start">
+              <div class="mt-0.5 w-4 h-4 rounded-full bg-[#2563eb]/10 flex items-center justify-center shrink-0"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div><span class="font-semibold text-gray-900">r=0.94 correlation</span><span class="text-gray-600"> ERAF shift → permit delays (26-wk lag)</span></div>
+            </div>
+            <div class="flex gap-2.5 items-start">
+              <div class="mt-0.5 w-4 h-4 rounded-full bg-[#2563eb]/10 flex items-center justify-center shrink-0"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div><span class="font-semibold text-gray-900">MAE 1.4 weeks</span><span class="text-gray-600"> city-level delay forecast accuracy</span></div>
+            </div>
+            <div class="flex gap-2.5 items-start">
+              <div class="mt-0.5 w-4 h-4 rounded-full bg-[#2563eb]/10 flex items-center justify-center shrink-0"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div><span class="font-semibold text-gray-900">Predicted 2022 collapse 6 months early</span><span class="text-gray-600"> (Q4'21 signal)</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. Product -->
+        <section>
+          <h2 class="text-[11px] uppercase tracking-widest font-semibold text-gray-500 mb-2">6. The Product</h2>
+          <div class="border border-gray-200 rounded-xl p-3.5 bg-white">
+            <div class="text-[10px] uppercase tracking-wide font-semibold text-gray-500">26 Proprietary Engines</div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span class="px-2.5 py-1 bg-[#2563eb] text-white text-[11px] rounded-md font-medium">ERAF Engine</span>
+              <span class="px-2.5 py-1 bg-[#2563eb] text-white text-[11px] rounded-md font-medium">LSCI v2</span>
+              <span class="px-2.5 py-1 bg-[#2563eb] text-white text-[11px] rounded-md font-medium">Velocity Score</span>
+              <span class="px-2.5 py-1 bg-[#2563eb] text-white text-[11px] rounded-md font-medium">Delay Predictor</span>
+              <span class="px-2.5 py-1 bg-gray-100 text-gray-700 text-[11px] rounded-md border border-gray-200">+22 more</span>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-100">
+              <div class="text-[10px] uppercase tracking-wide font-semibold text-gray-500 mb-1.5">4 Complementary Tools</div>
+              <div class="text-[12px] text-gray-700 grid grid-cols-2 gap-x-3 gap-y-1">
+                <div>• City Fiscal Scanner</div>
+                <div>• Permit Timeline API</div>
+                <div>• Developer Delay Alerts</div>
+                <div>• Municipal Underwriter Model</div>
+              </div>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-600">Public proxy: LSCI v2 correlates 0.91 with internal ERAF data.</div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-5 pt-3 border-t border-gray-200 flex items-center justify-between text-[11px] text-gray-500">
+      <div>PermitIntel, Inc. • The Fiscal Engine for Real Estate Development</div>
+      <div class="font-medium">permitintel.com • Patent Pending</div>
+    </div>
+
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('ccf');
+  if (!ctx) return;
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [0,4,8,12,16,20,24,26,28,32,36,40,44,48,52],
+      datasets: [
+        {
+          label: 'PermitIntel',
+          data: [0.12,0.21,0.34,0.48,0.61,0.78,0.89,0.94,0.91,0.82,0.68,0.51,0.33,0.21,0.11],
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,0.12)',
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointRadius: [0,0,0,0,0,4,0,0,0,0,0,0,0],
+          pointBackgroundColor: '#2563eb',
+          pointBorderColor: 'white',
+          pointBorderWidth: 2
+        },
+        {
+          label: 'Industry',
+          data: [0.71,0.68,0.62,0.55,0.48,0.41,0.33,0.28,0.22,0.18,0.14,0.11,0.08,0.06,0.04],
+          borderColor: '#9ca3af',
+          borderWidth: 1.5,
+          borderDash: [4,4],
+          tension: 0.35,
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      resp
